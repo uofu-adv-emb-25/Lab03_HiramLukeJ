@@ -11,10 +11,22 @@ void tearDown(void) {}
 
 void testTimeout() {
     SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
+    TEST_ASSERT_TRUE_MESSAGE(xSemaphoreTake(semaphore, portMAX_DELAY), "Failed to take Semaphore");
+    
+    int count = 0;
+    int status = print_count(semaphore, 0, &count, "timeout");
+
+    TEST_ASSERT_FALSE_MESSAGE(status, "Returned 1");
+    TEST_ASSERT_EQUAL_MESSAGE(0, count, "Count incremented");
 }
 
 void testSuccess() {
+    SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);    
+    int count = 0;
+    int status = print_count(semaphore, 0, &count, "success");
 
+    TEST_ASSERT_TRUE_MESSAGE(status, "Returned 0");
+    TEST_ASSERT_EQUAL_MESSAGE(1, count, "Count didn't increment");
 }
 
 int main (void)
