@@ -1,4 +1,4 @@
-add_executable(mytest test.c ../src/helpers.c unity_config.c)
+add_executable(mytest test.c deadlock.c ../src/helpers.c unity_config.c)
 
 target_link_libraries(mytest PRIVATE
   pico_stdlib
