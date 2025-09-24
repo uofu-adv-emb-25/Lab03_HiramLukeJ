@@ -59,17 +59,24 @@ void testOrphanedLock()
 {
     TaskHandle_t handle;
     SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
-    xTaskCreate(orphaned_lock, "create_deadlockA",
+    xTaskCreate(orphaned_lock, "orphaned_lock",
                 SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
-    
+
+    sleep_ms(10);
+    TEST_ASSERT_EQUAL_MESSAGE(eBlocked, eTaskGetState(handle), "Task wasn't blocked");
+    vTaskDelete(handle);
 }
 
 void testFixedOrphanedLock()
 {
     TaskHandle_t handle;
     SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
-    xTaskCreate(orphaned_lock, "create_deadlockA",
+    xTaskCreate(fixed_orphaned_lock, "fixed_orphaned_lock",
                 SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
+    
+    sleep_ms(10);
+    TEST_ASSERT_EQUAL_MESSAGE(eReady, eTaskGetState(handle), "Task was blocked");
+    vTaskDelete(handle);
 }
 
 void testRunner() {
@@ -80,6 +87,8 @@ void testRunner() {
         RUN_TEST(testTimeout);
         RUN_TEST(testSuccess);
         RUN_TEST(testDeadlock);
+        RUN_TEST(testOrphanedLock);
+        RUN_TEST(testFixedOrphanedLock);
         sleep_ms(5000);
         UNITY_END();
     }
