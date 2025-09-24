@@ -57,7 +57,19 @@ void testDeadlock() {
 
 void testOrphanedLock() 
 {
+    TaskHandle_t handle;
+    SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
+    xTaskCreate(orphaned_lock, "create_deadlockA",
+                SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
     
+}
+
+void testFixedOrphanedLock()
+{
+    TaskHandle_t handle;
+    SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
+    xTaskCreate(orphaned_lock, "create_deadlockA",
+                SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
 }
 
 void testRunner() {

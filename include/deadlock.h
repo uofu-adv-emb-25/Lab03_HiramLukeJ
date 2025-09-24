@@ -8,3 +8,4 @@ void create_deadlockB(__unused void *params);
 
 
 void orphaned_lock(__unused void *params);
+void fixed_orphaned_lock(void *params);

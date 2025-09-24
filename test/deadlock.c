@@ -38,3 +38,17 @@ void orphaned_lock(void *params)
         xSemaphoreGive(sem[1]);
     }
 }
+
+void fixed_orphaned_lock(void *params)
+{
+    SemaphoreHandle_t* sem = (SemaphoreHandle_t*)params;
+    int counter = 0;
+    while (1) {
+        xSemaphoreTake(sem[0], portMAX_DELAY);
+        counter++;
+        if (!(counter % 2)) {
+            printf("Count %d\n", counter);
+        }
+        xSemaphoreGive(sem[1]);
+    }
+}
