@@ -10,7 +10,7 @@ void setUp(void) {}
 
 void tearDown(void) {}
 
-#define SIDE_TASK_PRIORITY      ( tskIDLE_PRIORITY + 1UL )
+#define SIDE_TASK_PRIORITY      ( tskIDLE_PRIORITY + 4UL )
 #define SIDE_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
 
 void testTimeout() {
@@ -73,10 +73,14 @@ void testFixedOrphanedLock()
     SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
     xTaskCreate(fixed_orphaned_lock, "fixed_orphaned_lock",
                 SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
-    
     sleep_ms(10);
     TEST_ASSERT_EQUAL_MESSAGE(eReady, eTaskGetState(handle), "Task was blocked");
+    
+    // Cleanup, force thread to block before deleting
+    xSemaphoreTake(sem, portMAX_DELAY);
+    vTaskSuspend(handle);
     vTaskDelete(handle);
+    vSemaphoreDelete(sem);
 }
 
 void testRunner() {
@@ -101,7 +105,7 @@ int main (void)
     rtos_name = "Test";
     TaskHandle_t task;
     xTaskCreate(testRunner, "TestRunner",
-                SIDE_TASK_STACK_SIZE, NULL, SIDE_TASK_PRIORITY, &task);
+                SIDE_TASK_STACK_SIZE, NULL, SIDE_TASK_PRIORITY + 1, &task);
     vTaskStartScheduler();
     return 0;
 }

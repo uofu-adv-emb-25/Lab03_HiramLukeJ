@@ -35,7 +35,7 @@ void orphaned_lock(void *params)
             continue;
         }
         printf("Count %d\n", counter);
-        xSemaphoreGive(sem[1]);
+        xSemaphoreGive(sem[0]);
     }
 }
 
@@ -49,6 +49,6 @@ void fixed_orphaned_lock(void *params)
         if (!(counter % 2)) {
             printf("Count %d\n", counter);
         }
-        xSemaphoreGive(sem[1]);
+        xSemaphoreGive(sem[0]);
     }
 }
