@@ -22,7 +22,6 @@ void side_thread(void *params)
 	while (1) {
         vTaskDelay(100);
         print_count(semaphore, portMAX_DELAY, &counter, thread_str);
-        xSemaphoreGive(semaphore);
 	}
 }
 
