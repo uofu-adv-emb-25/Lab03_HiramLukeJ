@@ -3,33 +3,109 @@
 #include <stdint.h>
 #include <unity.h>
 #include "unity_config.h"
+#include "helpers.h"
+#include "deadlock.h"
 
 void setUp(void) {}
 
 void tearDown(void) {}
 
-void test_variable_assignment()
-{
-    int x = 1;
-    TEST_ASSERT_TRUE_MESSAGE(x == 1,"Variable assignment failed.");
+#define SIDE_TASK_PRIORITY      ( tskIDLE_PRIORITY + 4UL )
+#define SIDE_TASK_STACK_SIZE configMINIMAL_STACK_SIZE
+
+void testTimeout() {
+    SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);
+    TEST_ASSERT_TRUE_MESSAGE(xSemaphoreTake(semaphore, portMAX_DELAY), "Failed to take Semaphore");
+    
+    int count = 0;
+    int status = print_count(semaphore, 0, &count, "timeout");
+
+    TEST_ASSERT_FALSE_MESSAGE(status, "Returned 1");
+    TEST_ASSERT_EQUAL_MESSAGE(0, count, "Count incremented");
 }
 
-void test_multiplication(void)
+void testSuccess() {
+    SemaphoreHandle_t semaphore = xSemaphoreCreateCounting(1, 1);    
+    int count = 0;
+    int status = print_count(semaphore, 0, &count, "success");
+
+    TEST_ASSERT_TRUE_MESSAGE(status, "Returned 0");
+    TEST_ASSERT_EQUAL_MESSAGE(1, count, "Count didn't increment");
+}
+
+void testDeadlock() {
+    TaskHandle_t handle1, handle2;
+    SemaphoreHandle_t semA = xSemaphoreCreateCounting(1, 1);
+    SemaphoreHandle_t semB = xSemaphoreCreateCounting(1, 1);
+    SemaphoreHandle_t params[2] = {semA, semB};
+    
+    xTaskCreate(create_deadlockA, "create_deadlockA",
+                SIDE_TASK_STACK_SIZE, params, SIDE_TASK_PRIORITY, &handle1);
+    xTaskCreate(create_deadlockB, "create_deadlockB",
+                SIDE_TASK_STACK_SIZE, params, SIDE_TASK_PRIORITY, &handle2);
+
+    sleep_ms(100);
+    vTaskResume(handle1);
+    vTaskResume(handle2);
+    sleep_ms(100);
+    TEST_ASSERT_EQUAL_MESSAGE(eBlocked, eTaskGetState(handle1), "Task 1 wasn't blocked");
+    TEST_ASSERT_EQUAL_MESSAGE(eBlocked, eTaskGetState(handle2), "Task 2 wasn't blocked");
+    
+    vTaskDelete(handle1);
+    vTaskDelete(handle2);
+}
+
+void testOrphanedLock() 
 {
-    int x = 30;
-    int y = 6;
-    int z = x / y;
-    TEST_ASSERT_TRUE_MESSAGE(z == 5, "Multiplication of two integers returned incorrect value.");
+    TaskHandle_t handle;
+    SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
+    xTaskCreate(orphaned_lock, "orphaned_lock",
+                SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
+
+    sleep_ms(10);
+    TEST_ASSERT_EQUAL_MESSAGE(eBlocked, eTaskGetState(handle), "Task wasn't blocked");
+    vTaskDelete(handle);
+}
+
+void testFixedOrphanedLock()
+{
+    TaskHandle_t handle;
+    SemaphoreHandle_t sem = xSemaphoreCreateCounting(1, 1);
+    xTaskCreate(fixed_orphaned_lock, "fixed_orphaned_lock",
+                SIDE_TASK_STACK_SIZE, &sem, SIDE_TASK_PRIORITY, &handle);
+    sleep_ms(10);
+    TEST_ASSERT_EQUAL_MESSAGE(eReady, eTaskGetState(handle), "Task was blocked");
+    
+    // Cleanup, force thread to block before deleting
+    xSemaphoreTake(sem, portMAX_DELAY);
+    vTaskSuspend(handle);
+    vTaskDelete(handle);
+    vSemaphoreDelete(sem);
+}
+
+void testRunner() {
+    sleep_ms(10000);
+    while (1) {
+        printf("Start tests\n");
+        UNITY_BEGIN();
+        RUN_TEST(testTimeout);
+        RUN_TEST(testSuccess);
+        RUN_TEST(testDeadlock);
+        RUN_TEST(testOrphanedLock);
+        RUN_TEST(testFixedOrphanedLock);
+        sleep_ms(5000);
+        UNITY_END();
+    }
 }
 
 int main (void)
 {
     stdio_init_all();
-    sleep_ms(5000); // Give time for TTY to attach.
-    printf("Start tests\n");
-    UNITY_BEGIN();
-    RUN_TEST(test_variable_assignment);
-    RUN_TEST(test_multiplication);
-    sleep_ms(5000);
-    return UNITY_END();
+    const char *rtos_name;
+    rtos_name = "Test";
+    TaskHandle_t task;
+    xTaskCreate(testRunner, "TestRunner",
+                SIDE_TASK_STACK_SIZE, NULL, SIDE_TASK_PRIORITY + 1, &task);
+    vTaskStartScheduler();
+    return 0;
 }
